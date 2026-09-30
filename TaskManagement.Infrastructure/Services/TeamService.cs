@@ -56,38 +56,30 @@ public class TeamService : ITeamService
     }
 
     public async Task<List<TeamResponse>> GetMyTeamsAsync(
-        int userId)
+    int userId)
     {
-        return await _context.TeamMembers
-            .Where(x => x.UserId == userId)
-            .Include(x => x.Team)
-            .Select(x => new TeamResponse
-            {
-                Id = x.Team.Id,
-                Name = x.Team.Name,
-                Description = x.Team.Description,
-                CreatedBy = x.Team.CreatedBy,
-                CreatedAt = x.Team.CreatedAt
-            })
+        var teams = await _context.Teams
+            .Where(t => t.Members.Any(m => m.UserId == userId))
+            .Include(t => t.Members)
+            .ThenInclude(m => m.User)
             .ToListAsync();
+
+        return teams
+            .Select(MapToResponse)
+            .ToList();
     }
 
     public async Task<TeamResponse?> GetTeamByIdAsync(
-        int teamId,
-        int userId)
+    int teamId,
+    int userId)
     {
-        var isMember = await _context.TeamMembers
-            .AnyAsync(x =>
-                x.TeamId == teamId &&
-                x.UserId == userId);
-
-        if (!isMember)
-        {
-            return null;
-        }
-
         var team = await _context.Teams
-            .FirstOrDefaultAsync(x => x.Id == teamId);
+            .Where(t =>
+                t.Id == teamId &&
+                t.Members.Any(m => m.UserId == userId))
+            .Include(t => t.Members)
+            .ThenInclude(m => m.User)
+            .FirstOrDefaultAsync();
 
         return team == null
             ? null
@@ -156,7 +148,17 @@ public class TeamService : ITeamService
             Name = team.Name,
             Description = team.Description,
             CreatedBy = team.CreatedBy,
-            CreatedAt = team.CreatedAt
+            CreatedAt = team.CreatedAt,
+
+            Members = team.Members
+                .Select(m => new TeamMemberResponse
+                {
+                    UserId = m.UserId,
+                    Name = m.User.Name,
+                    Email = m.User.Email,
+                    Role = m.Role
+                })
+                .ToList()
         };
     }
 }

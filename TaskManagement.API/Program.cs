@@ -17,28 +17,28 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
-        builder.Services.AddScoped<IAuthService, AuthService>();
-        builder.Services.AddScoped<ITeamService, TeamService>();
-        builder.Services.AddScoped<IProjectService, ProjectService>();
-        builder.Services.AddScoped<ISprintService, SprintService>();
-        builder.Services.AddScoped<ITaskService, TaskService>();
-        builder.Services.AddScoped<ISubTaskService, SubTaskService>();
-        builder.Services.AddScoped<ICommentService, CommentService>();
-        builder.Services.AddScoped<
-    IAttachmentService,
-    AttachmentService>();
-    builder.Services.AddScoped<
-    IDashboardService,
-    DashboardService>();
-    
-        builder.Services.Configure<MongoDbSettings>(
-    builder.Configuration.GetSection("MongoDbSettings"));
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<ISprintService, SprintService>();
+builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<ISubTaskService, SubTaskService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<
+IAttachmentService,
+AttachmentService>();
+builder.Services.AddScoped<
+IDashboardService,
+DashboardService>();
+
+builder.Services.Configure<MongoDbSettings>(
+builder.Configuration.GetSection("MongoDbSettings"));
 
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.Configure<BlobStorageSettings>(
     builder.Configuration.GetSection("BlobStorage"));
-    builder.Services.AddExceptionHandler<
-    GlobalExceptionHandler>();
+builder.Services.AddExceptionHandler<
+GlobalExceptionHandler>();
 
 builder.Services.AddProblemDetails();
 
@@ -82,8 +82,10 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "http://localhost:5173",
-                "https://localhost:5173")
+    "http://localhost:5173",
+    "https://localhost:5173",
+    "http://localhost:5174",
+    "https://localhost:5174")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });

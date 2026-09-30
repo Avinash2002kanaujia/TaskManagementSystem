@@ -111,66 +111,66 @@ public class SprintController : ControllerBase
         }
     }
     [HttpPatch("{id:int}/activate")]
-public async Task<IActionResult> ActivateSprint(int id)
-{
-    try
+    public async Task<IActionResult> ActivateSprint(int id)
     {
-        var userId = GetUserId();
-
-        var sprint = await _sprintService
-            .ActivateSprintAsync(
-                id,
-                userId);
-
-        if (sprint == null)
+        try
         {
-            return NotFound(new
+            var userId = GetUserId();
+
+            var sprint = await _sprintService
+                .ActivateSprintAsync(
+                    id,
+                    userId);
+
+            if (sprint == null)
             {
-                message = "Sprint not found."
+                return NotFound(new
+                {
+                    message = "Sprint not found."
+                });
+            }
+
+            return Ok(sprint);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new
+            {
+                message = ex.Message
             });
         }
-
-        return Ok(sprint);
     }
-    catch (UnauthorizedAccessException ex)
+
+    [HttpPatch("{id:int}/deactivate")]
+    public async Task<IActionResult> DeactivateSprint(int id)
     {
-        return Unauthorized(new
+        try
         {
-            message = ex.Message
-        });
-    }
-}
+            var userId = GetUserId();
 
-[HttpPatch("{id:int}/deactivate")]
-public async Task<IActionResult> DeactivateSprint(int id)
-{
-    try
-    {
-        var userId = GetUserId();
+            var sprint = await _sprintService
+                .DeactivateSprintAsync(
+                    id,
+                    userId);
 
-        var sprint = await _sprintService
-            .DeactivateSprintAsync(
-                id,
-                userId);
-
-        if (sprint == null)
-        {
-            return NotFound(new
+            if (sprint == null)
             {
-                message = "Sprint not found."
+                return NotFound(new
+                {
+                    message = "Sprint not found."
+                });
+            }
+
+            return Ok(sprint);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new
+            {
+                message = ex.Message
             });
         }
-
-        return Ok(sprint);
     }
-    catch (UnauthorizedAccessException ex)
-    {
-        return Unauthorized(new
-        {
-            message = ex.Message
-        });
-    }
-}
 
     private int GetUserId()
     {
