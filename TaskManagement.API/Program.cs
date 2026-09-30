@@ -88,7 +88,13 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
-
+builder.Services.AddHttpClient<IAiService, OllamaAiService>(
+    client =>
+    {
+        client.BaseAddress =
+            new Uri("http://127.0.0.1:11434");
+        client.Timeout = TimeSpan.FromMinutes(5);
+    });
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
