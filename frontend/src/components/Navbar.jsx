@@ -10,51 +10,89 @@ function Navbar() {
     navigate("/login", { replace: true });
   };
 
+  const getNavClass = ({ isActive }) =>
+    `nav-link ${isActive ? "active" : ""}`;
+
   return (
-    <nav
-      style={{
-        padding: "15px 25px",
-        borderBottom: "1px solid #444",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
-      <h2 style={{ margin: 0 }}>
-        Task Management
-      </h2>
+    <nav className="navbar">
 
-      <div
-        style={{
-          display: "flex",
-          gap: "20px",
-          alignItems: "center",
-        }}
-      >
-        <NavLink to="/dashboard">
-          Dashboard
+      <div className="navbar-inner">
+
+        {/* Brand */}
+        <NavLink to="/dashboard" className="navbar-brand">
+          <div className="brand-icon">
+            ✓
+          </div>
+
+          <div>
+            <strong>TaskFlow</strong>
+            <span>Management</span>
+          </div>
         </NavLink>
 
-        <NavLink to="/teams">
-          Teams
-        </NavLink>
 
-        <NavLink to="/projects">
-          Projects
-        </NavLink>
+        {/* Navigation */}
+        <div className="navbar-links">
 
-        <NavLink to="/tasks">
-          Tasks
-        </NavLink>
+          <NavLink
+            to="/dashboard"
+            className={getNavClass}
+          >
+            <span>▦</span>
+            Dashboard
+          </NavLink>
 
-        <span>
-          {user?.name}
-        </span>
+          <NavLink
+            to="/teams"
+            className={getNavClass}
+          >
+            <span>♟</span>
+            Teams
+          </NavLink>
 
-        <button onClick={handleLogout}>
-          Logout
-        </button>
+          <NavLink
+            to="/projects"
+            className={getNavClass}
+          >
+            <span>▣</span>
+            Projects
+          </NavLink>
+
+          <NavLink
+            to="/tasks"
+            className={getNavClass}
+          >
+            <span>☷</span>
+            Tasks
+          </NavLink>
+
+        </div>
+
+
+        {/* User */}
+        <div className="navbar-user">
+
+          <div className="navbar-avatar">
+            {user?.name?.charAt(0)?.toUpperCase() || "U"}
+          </div>
+
+          <div className="navbar-user-info">
+            <strong>{user?.name}</strong>
+            <span>Team Member</span>
+          </div>
+
+          <button
+            className="logout-button"
+            onClick={handleLogout}
+            title="Logout"
+          >
+            ↪
+          </button>
+
+        </div>
+
       </div>
+
     </nav>
   );
 }

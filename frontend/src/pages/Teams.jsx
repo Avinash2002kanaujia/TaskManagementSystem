@@ -17,6 +17,7 @@ function Teams() {
   const [userId, setUserId] = useState("");
   const [addingMember, setAddingMember] = useState(false);
   const [memberMessage, setMemberMessage] = useState("");
+  const [memberMessageType, setMemberMessageType] = useState("");
 
   const loadTeams = async () => {
     try {
@@ -35,8 +36,8 @@ function Teams() {
 
       setError(
         error.response?.data?.detail ||
-        error.response?.data?.message ||
-        "Failed to load teams."
+          error.response?.data?.message ||
+          "Failed to load teams."
       );
     } finally {
       setLoading(false);
@@ -78,8 +79,8 @@ function Teams() {
 
       setError(
         error.response?.data?.detail ||
-        error.response?.data?.message ||
-        "Failed to create team."
+          error.response?.data?.message ||
+          "Failed to create team."
       );
     } finally {
       setCreating(false);
@@ -90,20 +91,24 @@ function Teams() {
     e.preventDefault();
 
     if (!selectedTeamId || !userId) {
-      setMemberMessage("Please select a team and enter a user ID.");
+      setMemberMessage(
+        "Please select a team and enter a user ID."
+      );
+      setMemberMessageType("error");
       return;
     }
 
     try {
       setAddingMember(true);
       setMemberMessage("");
+      setMemberMessageType("");
       setError("");
 
       await api.post(
         `/Team/${selectedTeamId}/members`,
         {
           userId: Number(userId),
-          role: 1
+          role: 1,
         },
         {
           headers: {
@@ -115,165 +120,434 @@ function Teams() {
       setMemberMessage(
         `User ${userId} added successfully.`
       );
+      setMemberMessageType("success");
 
       setUserId("");
+
+      await loadTeams();
     } catch (error) {
       console.error("Add member error:", error);
 
       setMemberMessage(
         error.response?.data?.detail ||
-        error.response?.data?.message ||
-        "Failed to add member."
+          error.response?.data?.message ||
+          "Failed to add member."
       );
+      setMemberMessageType("error");
     } finally {
       setAddingMember(false);
     }
   };
 
   if (loading) {
-    return <h2>Loading teams...</h2>;
+    return (
+      <div className="page-container">
+        <div className="loading-card">
+          <div className="spinner"></div>
+          <p>Loading teams...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <h1>Teams</h1>
+    <div className="page-container teams-page">
 
+      {/* Header */}
+      <div className="page-header">
+        <div>
+          <p className="page-eyebrow">COLLABORATION</p>
+
+          <h1>Teams</h1>
+
+          <p className="page-subtitle">
+            Manage your teams and collaborate with your
+            members.
+          </p>
+        </div>
+
+        <div className="team-count-badge">
+          <strong>{teams.length}</strong>
+          <span>{teams.length === 1 ? "Team" : "Teams"}</span>
+        </div>
+      </div>
+
+      {/* Error */}
       {error && (
-        <p style={{ color: "red" }}>
-          {error}
-        </p>
+        <div className="alert alert-error">
+          <span className="alert-icon">!</span>
+          <span>{error}</span>
+        </div>
       )}
 
-      {/* Create Team */}
-      <section>
-        <h2>Create Team</h2>
+      {/* Top Actions */}
+      <div className="team-actions-grid">
 
-        <form onSubmit={handleCreateTeam}>
-          <div>
-            <label>Team Name</label>
-            <br />
+        {/* Create Team */}
+        <section className="form-card">
 
-            <input
-              type="text"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Enter team name"
-              required
-            />
+          <div className="form-card-header">
+            <div className="form-card-icon create-icon">
+              +
+            </div>
+
+            <div>
+              <h2>Create Team</h2>
+              <p>
+                Create a new team for your project.
+              </p>
+            </div>
           </div>
 
-          <br />
+          <form onSubmit={handleCreateTeam}>
 
-          <div>
-            <label>Description</label>
-            <br />
+            <div className="form-group">
+              <label htmlFor="teamName">
+                Team Name
+              </label>
 
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter team description"
-              rows="4"
-            />
-          </div>
+              <input
+                id="teamName"
+                type="text"
+                value={teamName}
+                onChange={(e) =>
+                  setTeamName(e.target.value)
+                }
+                placeholder="e.g. Backend Team"
+                required
+              />
+            </div>
 
-          <br />
+            <div className="form-group">
+              <label htmlFor="teamDescription">
+                Description
+              </label>
 
-          <button type="submit" disabled={creating}>
-            {creating ? "Creating..." : "Create Team"}
-          </button>
-        </form>
-      </section>
+              <textarea
+                id="teamDescription"
+                value={description}
+                onChange={(e) =>
+                  setDescription(e.target.value)
+                }
+                placeholder="What is this team responsible for?"
+                rows="4"
+              />
+            </div>
 
-      <hr />
-
-      {/* Add Member */}
-      <section>
-        <h2>Add Team Member</h2>
-
-        <form onSubmit={handleAddMember}>
-          <div>
-            <label>Select Team</label>
-            <br />
-
-            <select
-              value={selectedTeamId}
-              onChange={(e) => setSelectedTeamId(e.target.value)}
-              required
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={creating}
             >
-              <option value="">
-                -- Select Team --
-              </option>
+              {creating ? (
+                <>
+                  <span className="button-spinner"></span>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <span>+</span>
+                  Create Team
+                </>
+              )}
+            </button>
 
-              {teams.map((team) => (
-                <option
-                  key={team.id}
-                  value={team.id}
-                >
-                  {team.name} (ID: {team.id})
+          </form>
+        </section>
+
+
+        {/* Add Member */}
+        <section className="form-card">
+
+          <div className="form-card-header">
+            <div className="form-card-icon member-icon">
+              +
+            </div>
+
+            <div>
+              <h2>Add Member</h2>
+              <p>
+                Add a user to one of your teams.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleAddMember}>
+
+            <div className="form-group">
+              <label htmlFor="selectedTeam">
+                Select Team
+              </label>
+
+              <select
+                id="selectedTeam"
+                value={selectedTeamId}
+                onChange={(e) =>
+                  setSelectedTeamId(e.target.value)
+                }
+                required
+              >
+                <option value="">
+                  Select a team
                 </option>
-              ))}
-            </select>
-          </div>
 
-          <br />
+                {teams.map((team) => (
+                  <option
+                    key={team.id}
+                    value={team.id}
+                  >
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label>User ID</label>
-            <br />
 
-            <input
-              type="number"
-              min="1"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              placeholder="Enter user ID"
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label htmlFor="userId">
+                User ID
+              </label>
 
-          <br />
+              <input
+                id="userId"
+                type="number"
+                min="1"
+                value={userId}
+                onChange={(e) =>
+                  setUserId(e.target.value)
+                }
+                placeholder="Enter user ID"
+                required
+              />
 
-          <button
-            type="submit"
-            disabled={addingMember}
-          >
-            {addingMember
-              ? "Adding..."
-              : "Add Member"}
-          </button>
-        </form>
+              <span className="field-help">
+                Enter the ID of the user you want to
+                add.
+              </span>
+            </div>
 
-        {memberMessage && (
-          <p>{memberMessage}</p>
-        )}
-      </section>
 
-      <hr />
+            <button
+              className="secondary-button"
+              type="submit"
+              disabled={addingMember}
+            >
+              {addingMember ? (
+                <>
+                  <span className="button-spinner"></span>
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <span>+</span>
+                  Add Member
+                </>
+              )}
+            </button>
+
+          </form>
+
+
+          {memberMessage && (
+            <div
+              className={`member-message ${
+                memberMessageType === "success"
+                  ? "message-success"
+                  : "message-error"
+              }`}
+            >
+              <span>
+                {memberMessageType === "success"
+                  ? "✓"
+                  : "!"}
+              </span>
+
+              {memberMessage}
+            </div>
+          )}
+
+        </section>
+
+      </div>
+
 
       {/* Teams */}
-      <section>
-        <h2>My Teams</h2>
+      <section className="teams-section">
+
+        <div className="section-header">
+          <div>
+            <h2>My Teams</h2>
+            <p>
+              Teams you're currently a member of.
+            </p>
+          </div>
+
+          <span className="section-count">
+            {teams.length}{" "}
+            {teams.length === 1 ? "team" : "teams"}
+          </span>
+        </div>
+
 
         {teams.length === 0 ? (
-          <p>No teams found.</p>
+          <div className="empty-state">
+
+            <div className="empty-icon">
+              👥
+            </div>
+
+            <h3>No teams yet</h3>
+
+            <p>
+              Create your first team to start
+              collaborating.
+            </p>
+
+          </div>
         ) : (
-          <ul>
-            {teams.map((team) => (
-              <li key={team.id}>
-                <h3>{team.name}</h3>
+          <div className="teams-grid">
 
-                <p>
-                  {team.description || "No description"}
-                </p>
+            {teams.map((team) => {
 
-                <p>
-                  Team ID: {team.id}
-                </p>
-              </li>
-            ))}
-          </ul>
+              const members = team.members || [];
+
+              return (
+                <div
+                  className="team-card"
+                  key={team.id}
+                >
+
+                  {/* Team header */}
+                  <div className="team-card-header">
+
+                    <div className="team-avatar">
+                      {team.name
+                        ?.charAt(0)
+                        ?.toUpperCase() || "T"}
+                    </div>
+
+                    <div className="team-title">
+
+                      <h3>{team.name}</h3>
+
+                      <span>
+                        Team #{team.id}
+                      </span>
+
+                    </div>
+
+                    <div className="team-menu">
+                      •••
+                    </div>
+
+                  </div>
+
+
+                  {/* Description */}
+                  <p className="team-description">
+                    {team.description ||
+                      "No description provided."}
+                  </p>
+
+
+                  {/* Members */}
+                  <div className="team-members-section">
+
+                    <div className="members-header">
+                      <span>Members</span>
+
+                      <strong>
+                        {members.length}
+                      </strong>
+                    </div>
+
+
+                    {members.length > 0 ? (
+                      <div className="member-list">
+
+                        {members
+                          .slice(0, 5)
+                          .map((member) => (
+                            <div
+                              className="member-row"
+                              key={member.userId}
+                            >
+
+                              <div className="member-avatar">
+                                {member.name
+                                  ?.charAt(0)
+                                  ?.toUpperCase() ||
+                                  "U"}
+                              </div>
+
+                              <div className="member-info">
+                                <strong>
+                                  {member.name}
+                                </strong>
+
+                                <span>
+                                  {member.email}
+                                </span>
+                              </div>
+
+                              <span
+                                className={`role-badge ${
+                                  member.role === 2
+                                    ? "role-admin"
+                                    : "role-member"
+                                }`}
+                              >
+                                {member.role === 2
+                                  ? "Admin"
+                                  : "Member"}
+                              </span>
+
+                            </div>
+                          ))}
+
+                      </div>
+                    ) : (
+                      <p className="no-members">
+                        No members found.
+                      </p>
+                    )}
+
+                  </div>
+
+
+                  {/* Footer */}
+                  <div className="team-card-footer">
+
+                    <span>
+                      {members.length}{" "}
+                      {members.length === 1
+                        ? "member"
+                        : "members"}
+                    </span>
+
+                    <button
+                      type="button"
+                      className="view-team-button"
+                      onClick={() =>
+                        setSelectedTeamId(
+                          String(team.id)
+                        )
+                      }
+                    >
+                      Select Team →
+                    </button>
+
+                  </div>
+
+                </div>
+              );
+            })}
+
+          </div>
         )}
+
       </section>
+
     </div>
   );
 }

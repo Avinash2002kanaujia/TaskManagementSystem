@@ -30,6 +30,20 @@ function Tasks() {
 
   const [selectedSprintId, setSelectedSprintId] = useState("");
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
+  const [selectedTask, setSelectedTask] = useState(null);
+  useEffect(() => {
+
+}, [selectedTask]);
+  const [taskSubtasks, setTaskSubtasks] = useState([]);
+const [loadingSubtasks, setLoadingSubtasks] = useState(false);
+const [taskComments, setTaskComments] = useState([]);
+const [loadingComments, setLoadingComments] = useState(false);
+const [commentText, setCommentText] = useState("");
+const [addingComment, setAddingComment] = useState(false);
+const [taskAttachments, setTaskAttachments] = useState([]);
+const [loadingAttachments, setLoadingAttachments] = useState(false);
+const [uploadingAttachment, setUploadingAttachment] = useState(false);
+const [selectedFile, setSelectedFile] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(false);
@@ -131,6 +145,7 @@ const [aiSubtasks, setAiSubtasks] = useState([]);
     }
   };
 
+
   // -----------------------------------------
   // Load sprints + team members
   // -----------------------------------------
@@ -187,7 +202,7 @@ const [aiSubtasks, setAiSubtasks] = useState([]);
           headers: authHeaders,
         }
       );
-      console.log("TEAM RESPONSE:", teamResponse.data);
+
 
       const team = teamResponse.data;
 
@@ -228,6 +243,265 @@ const [aiSubtasks, setAiSubtasks] = useState([]);
       setLoadingOptions(false);
     }
   };
+  const loadTaskSubtasks = async (taskId) => {
+  try {
+    setLoadingSubtasks(true);
+
+    const response = await api.get(
+      `/SubTask/task/${taskId}`,
+      {
+        headers: authHeaders,
+      }
+    );
+
+    setTaskSubtasks(response.data || []);
+  } catch (error) {
+    console.error("Load subtasks error:", error);
+    setTaskSubtasks([]);
+  } finally {
+    setLoadingSubtasks(false);
+  }
+};
+const loadTaskComments = async (taskId) => {
+  try {
+    setLoadingComments(true);
+
+    const response = await api.get(
+      `/Comment/task/${taskId}`,
+      {
+        headers: authHeaders,
+      }
+    );
+
+    setTaskComments(response.data || []);
+  } catch (error) {
+    console.error("Load comments error:", error);
+    setTaskComments([]);
+  } finally {
+    setLoadingComments(false);
+  }
+};
+const loadTaskAttachments = async (taskId) => {
+  try {
+    setLoadingAttachments(true);
+
+    const response = await api.get(
+      `/Attachment/task/${taskId}`,
+      {
+        headers: authHeaders,
+      }
+    );
+
+    setTaskAttachments(response.data || []);
+  } catch (error) {
+    console.error("Load attachments error:", error);
+    setTaskAttachments([]);
+  } finally {
+    setLoadingAttachments(false);
+  }
+};
+const handleUploadAttachment = async () => {
+  if (!selectedTask || !selectedFile) {
+    return;
+  }
+
+  try {
+    setUploadingAttachment(true);
+    setError("");
+
+    const formData = new FormData();
+
+    formData.append("file", selectedFile);
+
+    const response = await api.post(
+      `/Attachment/task/${selectedTask.id}`,
+      formData,
+      {
+        headers: {
+          ...authHeaders,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    setTaskAttachments((current) => [
+      ...current,
+      response.data,
+    ]);
+
+    setSelectedFile(null);
+
+    // Reset file input
+    const fileInput = document.getElementById(
+      "task-attachment-input"
+    );
+
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  } catch (error) {
+    console.error("Upload attachment error:", error);
+
+    setError(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        "Failed to upload attachment."
+    );
+  } finally {
+    setUploadingAttachment(false);
+  }
+};
+const handleDownloadAttachment = async (attachment) => {
+  try {
+    const response = await api.get(
+      `/Attachment/${attachment.id}/download`,
+      {
+        headers: authHeaders,
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob(
+      [response.data],
+      {
+        type:
+          response.headers["content-type"] ||
+          "application/octet-stream",
+      }
+    );
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+
+    link.download =
+      attachment.fileName ||
+      attachment.name ||
+      "attachment";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(
+      "Download attachment error:",
+      error
+    );
+
+    setError(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        "Failed to download attachment."
+    );
+  }
+};
+const handleDeleteAttachment = async (attachmentId) => {
+  try {
+    await api.delete(
+      `/Attachment/${attachmentId}`,
+      {
+        headers: authHeaders,
+      }
+    );
+
+    setTaskAttachments((current) =>
+      current.filter(
+        (attachment) =>
+          attachment.id !== attachmentId
+      )
+    );
+  } catch (error) {
+    console.error(
+      "Delete attachment error:",
+      error
+    );
+
+    setError(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        "Failed to delete attachment."
+    );
+  }
+};
+const handleAddComment = async () => {
+  if (!selectedTask || !commentText.trim()) {
+    return;
+  }
+
+  try {
+    setAddingComment(true);
+
+    const response = await api.post(
+      `/Comment/task/${selectedTask.id}`,
+      {
+        content: commentText.trim(),
+      },
+      {
+        headers: authHeaders,
+      }
+    );
+
+    setTaskComments((current) => [
+      ...current,
+      response.data,
+    ]);
+
+    setCommentText("");
+  } catch (error) {
+    console.error("Add comment error:", error);
+
+    setError(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        "Failed to add comment."
+    );
+  } finally {
+    setAddingComment(false);
+  }
+};
+
+const handleSubtaskToggle = async (subtask) => {
+  try {
+    const newCompletedState = !subtask.isCompleted;
+
+    // Optimistic UI update
+    setTaskSubtasks((current) =>
+      current.map((item) =>
+        item.id === subtask.id
+          ? {
+              ...item,
+              isCompleted: newCompletedState,
+            }
+          : item
+      )
+    );
+
+    await api.patch(
+      `/SubTask/${subtask.id}`,
+      newCompletedState,
+      {
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Update subtask error:", error);
+
+    // Reload from backend if update failed
+    if (selectedTask) {
+      await loadTaskSubtasks(selectedTask.id);
+    }
+  }
+};
+
 
   // -----------------------------------------
   // Initial load
@@ -338,18 +612,18 @@ const handleGenerateWithAi = async () => {
         ? new Date(dueDate).toISOString()
         : null,
       sprintId: selectedSprintId
-        ? Number(selectedSprintId)
-        : null,
-      assigneeId: selectedAssigneeId
-        ? Number(selectedAssigneeId)
-        : null
+  ? Number(selectedSprintId)
+  : null,
+assigneeId: selectedAssigneeId
+  ? Number(selectedAssigneeId)
+  : null
     },
     {
       headers: authHeaders
     }
   );
 
-  console.log("AI TASK CREATED:", response.data);
+
 } else {
       // -----------------------------------------
       // Normal task creation
@@ -365,12 +639,13 @@ const handleGenerateWithAi = async () => {
           dueDate: dueDate
             ? new Date(dueDate).toISOString()
             : null,
-          sprintId: sprintId
-            ? Number(sprintId)
-            : null,
-          assigneeId: assigneeId
-            ? Number(assigneeId)
-            : null
+          sprintId: selectedSprintId
+  ? Number(selectedSprintId)
+  : null,
+
+assigneeId: selectedAssigneeId
+  ? Number(selectedAssigneeId)
+  : null
         },
         {
           headers: authHeaders
@@ -448,33 +723,94 @@ setError(
   // -----------------------------------------
   // Loading
   // -----------------------------------------
-  if (loading) {
-    return <h2>Loading tasks...</h2>;
+    if (loading) {
+    return (
+      <div className="page-container">
+        <div className="loading-card">
+          <div className="spinner"></div>
+          <p>Loading tasks...</p>
+        </div>
+      </div>
+    );
   }
 
+  const selectedProject = projects.find(
+    (project) =>
+      String(project.id) === String(selectedProjectId)
+  );
+
   return (
-    <div>
-      <h1>Tasks</h1>
+    <div className="page-container tasks-page">
+
+      {/* =========================================
+          PAGE HEADER
+      ========================================= */}
+
+      <div className="tasks-page-header">
+
+        <div>
+          <p className="page-eyebrow">
+            PROJECT MANAGEMENT
+          </p>
+
+          <h1>Tasks</h1>
+
+          <p className="page-subtitle">
+            Manage your project tasks and track progress
+            across the workflow.
+          </p>
+        </div>
+
+        <div className="task-summary-badge">
+          <strong>{tasks.length}</strong>
+          <span>
+            {tasks.length === 1 ? "Task" : "Tasks"}
+          </span>
+        </div>
+
+      </div>
+
+
+      {/* =========================================
+          ERROR
+      ========================================= */}
 
       {error && (
-        <p style={{ color: "red" }}>
-          {error}
-        </p>
+        <div className="alert alert-error">
+          <span className="alert-icon">!</span>
+          <span>{error}</span>
+        </div>
       )}
 
-      {/* ---------------------------------- */}
-      {/* PROJECT SELECTOR */}
-      {/* ---------------------------------- */}
 
-      <section>
-        <h2>Select Project</h2>
+      {/* =========================================
+          PROJECT SELECTOR
+      ========================================= */}
+
+      <section className="task-project-bar">
+
+        <div className="task-project-info">
+
+          <div className="project-selector-icon">
+            📁
+          </div>
+
+          <div>
+            <span>Current Project</span>
+
+            <strong>
+              {selectedProject?.name ||
+                "Select a project"}
+            </strong>
+          </div>
+
+        </div>
 
         <select
+          className="project-select"
           value={selectedProjectId}
           onChange={(e) =>
-            setSelectedProjectId(
-              e.target.value
-            )
+            setSelectedProjectId(e.target.value)
           }
         >
           <option value="">
@@ -490,432 +826,969 @@ setError(
             </option>
           ))}
         </select>
+
       </section>
 
-      <br />
 
-      {/* ---------------------------------- */}
-      {/* CREATE TASK */}
-      {/* ---------------------------------- */}
+      {/* =========================================
+          CREATE TASK
+      ========================================= */}
 
-      <section>
-        <h2>Create Task</h2>
+      <section className="task-create-card">
+
+        <div className="task-create-header">
+
+          <div>
+            <p className="section-eyebrow">
+              NEW TASK
+            </p>
+
+            <h2>Create Task</h2>
+
+            <p>
+              Add a task to the current project.
+            </p>
+          </div>
+
+          {selectedProject && (
+            <span className="project-name-pill">
+              {selectedProject.name}
+            </span>
+          )}
+
+        </div>
+
 
         <form onSubmit={handleCreateTask}>
-          {/* TITLE */}
 
-          <div>
-  <label>Title</label>
-  <br />
+          {/* Title */}
 
-  <input
-    type="text"
-    value={title}
-    onChange={(e) =>
-      setTitle(e.target.value)
-    }
-    placeholder="Enter task title"
-    required
-  />
+          <div className="form-group">
 
-  <br />
-  <br />
-
-  <button
-    type="button"
-    onClick={handleGenerateWithAi}
-    disabled={
-      generatingAi ||
-      !title.trim()
-    }
-  >
-    {generatingAi
-      ? "Generating..."
-      : "✨ Generate with AI"}
-  </button>
-</div>
-
-          <br />
-
-          {/* DESCRIPTION */}
-
-          <div>
-            <label>Description</label>
-            <br />
-
-            <textarea
-              value={description}
-              onChange={(e) =>
-                setDescription(
-                  e.target.value
-                )
-              }
-              placeholder="Enter task description"
-              rows="4"
-            />
-          </div>
-
-          <br />
-
-          {/* ACCEPTANCE CRITERIA */}
-
-          <div>
-            <label>
-              Acceptance Criteria
+            <label htmlFor="taskTitle">
+              Task Title
             </label>
-            <br />
 
-            <textarea
-              value={acceptanceCriteria}
-              onChange={(e) =>
-                setAcceptanceCriteria(
-                  e.target.value
-                )
-              }
-              placeholder="Enter acceptance criteria"
-              rows="4"
-            />
+            <div className="title-ai-row">
+
+              <input
+                id="taskTitle"
+                className="task-title-input"
+                type="text"
+                value={title}
+                onChange={(e) =>
+                  setTitle(e.target.value)
+                }
+                placeholder="e.g. Implement user authentication"
+                required
+              />
+
+              <button
+                type="button"
+                className="ai-button"
+                onClick={handleGenerateWithAi}
+                disabled={
+                  generatingAi ||
+                  !title.trim()
+                }
+              >
+                {generatingAi ? (
+                  <>
+                    <span className="button-spinner"></span>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    ✨ Generate with AI
+                  </>
+                )}
+              </button>
+
+            </div>
+
           </div>
 
-          <br />
 
-          {/* PRIORITY */}
+          {/* Description + Acceptance Criteria */}
+
+          <div className="task-form-two-column">
+
+            <div className="form-group">
+
+              <label htmlFor="taskDescription">
+                Description
+              </label>
+
+              <textarea
+                id="taskDescription"
+                value={description}
+                onChange={(e) =>
+                  setDescription(e.target.value)
+                }
+                placeholder="Describe what needs to be done..."
+                rows="5"
+              />
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="acceptanceCriteria">
+                Acceptance Criteria
+              </label>
+
+              <textarea
+                id="acceptanceCriteria"
+                value={acceptanceCriteria}
+                onChange={(e) =>
+                  setAcceptanceCriteria(
+                    e.target.value
+                  )
+                }
+                placeholder="Enter the conditions that define completion..."
+                rows="5"
+              />
+
+            </div>
+
+          </div>
+
+
+          {/* AI Subtasks */}
+
           {aiSubtasks.length > 0 && (
-  <>
-    <br />
+            <div className="ai-subtasks-card">
 
-    <div>
-      <h3>✨ AI Generated Subtasks</h3>
+              <div className="ai-subtasks-header">
 
-      <ul>
-        {aiSubtasks.map((subtask, index) => (
-          <li key={index}>
-            {subtask}
-          </li>
-        ))}
-      </ul>
-    </div>
-  </>
-)}
+                <div>
+                  <span className="ai-sparkle">
+                    ✨
+                  </span>
 
-<br />
+                  <strong>
+                    AI Generated Subtasks
+                  </strong>
+                </div>
 
-{/* PRIORITY */}
+                <span>
+                  {aiSubtasks.length} subtasks
+                </span>
 
-          <div>
-            <label>Priority</label>
-            <br />
+              </div>
 
-            <select
-              value={priority}
-              onChange={(e) =>
-                setPriority(
-                  Number(e.target.value)
-                )
-              }
-            >
-              <option value={1}>
-                Low
-              </option>
+              <div className="ai-subtask-list">
 
-              <option value={2}>
-                Medium
-              </option>
+                {aiSubtasks.map(
+                  (subtask, index) => (
+                    <div
+                      className="ai-subtask-item"
+                      key={index}
+                    >
+                      <span>
+                        {index + 1}
+                      </span>
 
-              <option value={3}>
-                High
-              </option>
+                      <p>{subtask}</p>
+                    </div>
+                  )
+                )}
 
-              <option value={4}>
-                Critical
-              </option>
-            </select>
-          </div>
+              </div>
 
-          <br />
+            </div>
+          )}
 
-          {/* SPRINT */}
 
-          <div>
-            <label>Sprint</label>
-            <br />
+          {/* Task options */}
 
-            <select
-              value={selectedSprintId}
-              onChange={(e) =>
-                setSelectedSprintId(
-                  e.target.value
-                )
-              }
-              disabled={
-                loadingOptions ||
-                !selectedProjectId
-              }
-            >
-              <option value="">
-                -- No Sprint --
-              </option>
+          <div className="task-options-grid">
 
-              {sprints.map((sprint) => (
-                <option
-                  key={sprint.id}
-                  value={sprint.id}
-                >
-                  {sprint.name}
-                  {sprint.isActive
-                    ? " (Active)"
-                    : ""}
+            {/* Priority */}
+
+            <div className="form-group">
+
+              <label htmlFor="taskPriority">
+                Priority
+              </label>
+
+              <select
+                id="taskPriority"
+                value={priority}
+                onChange={(e) =>
+                  setPriority(
+                    Number(e.target.value)
+                  )
+                }
+              >
+                <option value={1}>
+                  Low
                 </option>
-              ))}
-            </select>
-          </div>
 
-          <br />
+                <option value={2}>
+                  Medium
+                </option>
 
-          {/* ASSIGNEE */}
+                <option value={3}>
+                  High
+                </option>
 
-          <div>
-            <label>Assignee</label>
-            <br />
+                <option value={4}>
+                  Critical
+                </option>
+              </select>
 
-            <select
-              value={selectedAssigneeId}
-              onChange={(e) =>
-                setSelectedAssigneeId(
-                  e.target.value
-                )
-              }
-              disabled={
-                loadingOptions ||
-                !selectedProjectId
-              }
-            >
-              <option value="">
-                -- Unassigned --
-              </option>
+            </div>
 
-              {members.map((member) => {
-                /*
-                 * Support different possible
-                 * backend member shapes.
-                 */
 
-                const userId =
-                  member.userId ??
-                  member.id;
+            {/* Sprint */}
 
-                const userName =
-                  member.user?.name ??
-                  member.name ??
-                  `User ${userId}`;
+            <div className="form-group">
 
-                const userEmail =
-                  member.user?.email ??
-                  member.email ??
-                  "";
+              <label htmlFor="taskSprint">
+                Sprint
+              </label>
 
-                return (
+              <select
+                id="taskSprint"
+                value={selectedSprintId}
+                onChange={(e) =>
+                  setSelectedSprintId(
+                    e.target.value
+                  )
+                }
+                disabled={
+                  loadingOptions ||
+                  !selectedProjectId
+                }
+              >
+
+                <option value="">
+                  No Sprint
+                </option>
+
+                {sprints.map((sprint) => (
                   <option
-                    key={userId}
-                    value={userId}
+                    key={sprint.id}
+                    value={sprint.id}
                   >
-                    {userName}
-                    {userEmail
-                      ? ` (${userEmail})`
+                    {sprint.name}
+                    {sprint.isActive
+                      ? " • Active"
                       : ""}
                   </option>
-                );
-              })}
-            </select>
+                ))}
+
+              </select>
+
+            </div>
+
+
+            {/* Assignee */}
+
+            <div className="form-group">
+
+              <label htmlFor="taskAssignee">
+                Assignee
+              </label>
+
+              <select
+                id="taskAssignee"
+                value={selectedAssigneeId}
+                onChange={(e) =>
+                  setSelectedAssigneeId(
+                    e.target.value
+                  )
+                }
+                disabled={
+                  loadingOptions ||
+                  !selectedProjectId
+                }
+              >
+
+                <option value="">
+                  Unassigned
+                </option>
+
+                {members.map((member) => {
+
+                  const userId =
+                    member.userId ??
+                    member.id;
+
+                  const userName =
+                    member.user?.name ??
+                    member.name ??
+                    `User ${userId}`;
+
+                  const userEmail =
+                    member.user?.email ??
+                    member.email ??
+                    "";
+
+                  return (
+                    <option
+                      key={userId}
+                      value={userId}
+                    >
+                      {userName}
+                      {userEmail
+                        ? ` (${userEmail})`
+                        : ""}
+                    </option>
+                  );
+                })}
+
+              </select>
+
+            </div>
+
+
+            {/* Due Date */}
+
+            <div className="form-group">
+
+              <label htmlFor="taskDueDate">
+                Due Date
+              </label>
+
+              <input
+                id="taskDueDate"
+                type="datetime-local"
+                value={dueDate}
+                onChange={(e) =>
+                  setDueDate(e.target.value)
+                }
+              />
+
+            </div>
+
           </div>
 
-          <br />
 
-          {/* DUE DATE */}
+          {/* Submit */}
 
-          <div>
-            <label>Due Date</label>
-            <br />
+          <div className="create-task-footer">
 
-            <input
-              type="datetime-local"
-              value={dueDate}
-              onChange={(e) =>
-                setDueDate(
-                  e.target.value
-                )
+            <span>
+              Tasks start in the <strong>To Do</strong>{" "}
+              status.
+            </span>
+
+            <button
+              className="create-task-button"
+              type="submit"
+              disabled={
+                creating ||
+                !selectedProjectId
               }
-            />
+            >
+              {creating ? (
+                <>
+                  <span className="button-spinner"></span>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  + Create Task
+                </>
+              )}
+            </button>
+
           </div>
 
-          <br />
-
-          <button
-            type="submit"
-            disabled={
-              creating ||
-              !selectedProjectId
-            }
-          >
-            {creating
-              ? "Creating..."
-              : "Create Task"}
-          </button>
         </form>
+
       </section>
 
-      <hr />
 
-      {/* ---------------------------------- */}
-      {/* TASK BOARD */}
-      {/* ---------------------------------- */}
+      {/* =========================================
+          KANBAN BOARD
+      ========================================= */}
 
-      <section>
-        <h2>Task Board</h2>
+      <section className="kanban-section">
+
+        <div className="kanban-header">
+
+          <div>
+            <p className="section-eyebrow">
+              WORKFLOW
+            </p>
+
+            <h2>Task Board</h2>
+
+            <p>
+              Move tasks through your development
+              workflow.
+            </p>
+          </div>
+
+          <div className="kanban-total">
+            {tasks.length}{" "}
+            {tasks.length === 1
+              ? "task"
+              : "tasks"}
+          </div>
+
+        </div>
+
 
         {loadingTasks ? (
-          <p>Loading tasks...</p>
+          <div className="kanban-loading">
+
+            <div className="spinner"></div>
+
+            <p>Loading tasks...</p>
+
+          </div>
         ) : tasks.length === 0 ? (
-          <p>No tasks found.</p>
+          <div className="empty-state">
+
+            <div className="empty-icon">
+              📋
+            </div>
+
+            <h3>No tasks yet</h3>
+
+            <p>
+              Create your first task to start
+              managing the project.
+            </p>
+
+          </div>
         ) : (
-          <div>
+          <div className="kanban-board">
+
             {[1, 2, 3, 4].map(
               (status) => {
+
                 const statusTasks =
                   tasks.filter(
                     (task) =>
-                      task.status ===
-                      status
+                      task.status === status
                   );
 
+                const statusClass = {
+                  1: "kanban-todo",
+                  2: "kanban-progress",
+                  3: "kanban-testing",
+                  4: "kanban-done",
+                }[status];
+
                 return (
-                  <section
+                  <div
+                    className={`kanban-column ${statusClass}`}
                     key={status}
                   >
-                    <h3>
-                      {STATUS[status]} (
-                      {
-                        statusTasks.length
-                      }
-                      )
-                    </h3>
 
-                    {statusTasks.length ===
-                    0 ? (
-                      <p>No tasks.</p>
-                    ) : (
-                      <ul>
-                        {statusTasks.map(
-                          (task) => (
-                            <li
-                              key={
-                                task.id
-                              }
-                            >
-                              <h4>
-                                {task.title}
-                              </h4>
+                    {/* Column header */}
 
-                              <p>
-                                {task.description ||
-                                  "No description"}
-                              </p>
+                    <div className="kanban-column-header">
 
-                              <p>
-                                Priority:{" "}
-                                {PRIORITY[
-                                  task
-                                    .priority
-                                ] ||
-                                  task.priority}
-                              </p>
+                      <div className="kanban-column-title">
 
-                              <p>
-                                Status:{" "}
-                                {STATUS[
-                                  task.status
-                                ] ||
-                                  task.status}
-                              </p>
+                        <span className="status-dot"></span>
 
-                              {task.sprintId && (
-                                <p>
-                                  Sprint ID:{" "}
-                                  {
-                                    task.sprintId
-                                  }
+                        <h3>
+                          {STATUS[status]}
+                        </h3>
+
+                      </div>
+
+                      <span className="kanban-count">
+                        {statusTasks.length}
+                      </span>
+
+                    </div>
+
+
+                    {/* Cards */}
+
+                    <div className="kanban-cards">
+
+                      {statusTasks.length === 0 ? (
+                        <div className="kanban-empty">
+                          <span>+</span>
+                          <p>No tasks</p>
+                        </div>
+                      ) : (
+                        statusTasks.map(
+                          (task) => {
+
+                            const priorityClass = {
+                              1: "priority-low",
+                              2: "priority-medium",
+                              3: "priority-high",
+                              4: "priority-critical",
+                            }[
+                              task.priority
+                            ];
+
+                            return (
+                              <article
+  key={task.id}
+  className="task-card"
+onClick={() => {
+
+
+  setSelectedTask(task);
+
+  // Clear previous task data
+  setTaskSubtasks([]);
+  setTaskComments([]);
+  setTaskAttachments([]);
+
+  // Load selected task data
+  loadTaskSubtasks(task.id);
+  loadTaskComments(task.id);
+  loadTaskAttachments(task.id);
+}}
+>
+
+                                <div className="task-card-top">
+
+                                  <span
+                                    className={`priority-badge ${priorityClass}`}
+                                  >
+                                    {PRIORITY[
+                                      task.priority
+                                    ] ||
+                                      task.priority}
+                                  </span>
+
+                                  <span className="task-id">
+                                    #{task.id}
+                                  </span>
+
+                                </div>
+
+
+                                <h4>
+                                  {task.title}
+                                </h4>
+
+
+                                <p className="task-card-description">
+                                  {task.description ||
+                                    "No description provided."}
                                 </p>
-                              )}
 
-                              {task.assigneeId && (
-                                <p>
-                                  Assignee ID:{" "}
-                                  {
-                                    task.assigneeId
-                                  }
-                                </p>
-                              )}
 
-                              {task.dueDate && (
-                                <p>
-                                  Due:{" "}
-                                  {new Date(
-                                    task.dueDate
-                                  ).toLocaleString()}
-                                </p>
-                              )}
+                                {/* Metadata */}
 
-                              <div>
-                                <label>
-                                  Change
-                                  Status:{" "}
-                                </label>
+                                <div className="task-card-meta">
 
-                                <select
-                                  value={
-                                    task.status
-                                  }
-                                  onChange={(
-                                    e
-                                  ) =>
-                                    handleStatusChange(
-                                      task.id,
-                                      e.target
-                                        .value
-                                    )
-                                  }
-                                >
-                                  <option value={1}>
-                                    To Do
-                                  </option>
+                                  {task.assigneeId && (
+                                    <div className="task-meta-item">
+                                      <span className="meta-icon">
+                                        👤
+                                      </span>
 
-                                  <option value={2}>
-                                    In Progress
-                                  </option>
+                                      <span>
+                                        User{" "}
+                                        {task.assigneeId}
+                                      </span>
+                                    </div>
+                                  )}
 
-                                  <option value={3}>
-                                    Testing
-                                  </option>
+                                  {task.sprintId && (
+                                    <div className="task-meta-item">
+                                      <span className="meta-icon">
+                                        ◫
+                                      </span>
 
-                                  <option value={4}>
-                                    Done
-                                  </option>
-                                </select>
-                              </div>
+                                      <span>
+                                        Sprint{" "}
+                                        {task.sprintId}
+                                      </span>
+                                    </div>
+                                  )}
 
-                              <hr />
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    )}
-                  </section>
+                                  {task.dueDate && (
+                                    <div className="task-meta-item">
+                                      <span className="meta-icon">
+                                        📅
+                                      </span>
+
+                                      <span>
+                                        {new Date(
+                                          task.dueDate
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                </div>
+
+
+                                {/* Status */}
+
+                                <div className="task-card-status">
+
+                                  <label>
+                                    Move to
+                                  </label>
+
+                                  <select
+  value={task.status}
+  onClick={(e) => e.stopPropagation()}
+  onChange={(e) =>
+    handleStatusChange(
+      task.id,
+      e.target.value
+    )
+  }
+>
+
+                                    <option value={1}>
+                                      To Do
+                                    </option>
+
+                                    <option value={2}>
+                                      In Progress
+                                    </option>
+
+                                    <option value={3}>
+                                      Testing
+                                    </option>
+
+                                    <option value={4}>
+                                      Done
+                                    </option>
+
+                                  </select>
+
+                                </div>
+
+                              </article>
+                            );
+                          }
+                        )
+                      )}
+
+                    </div>
+
+                  </div>
                 );
               }
             )}
+
           </div>
         )}
+
       </section>
+{selectedTask && (
+  <div
+  className="task-modal-overlay"
+  style={{
+    position: "fixed",
+    inset: 0,
+    zIndex: 99999,
+    background: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+  onClick={() => setSelectedTask(null)}
+>
+    <div
+  className="task-modal"
+  style={{
+    position: "relative",
+    zIndex: 100000,
+    width: "90%",
+    maxWidth: "600px",
+    maxHeight: "85vh",
+    overflowY: "auto",
+    background: "white",
+    borderRadius: "16px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+  }}
+  onClick={(e) => e.stopPropagation()}
+>
+      <div className="task-modal-header">
+        <div>
+          <span className="task-modal-id">
+            TASK #{selectedTask.id}
+          </span>
+
+          <h2>{selectedTask.title}</h2>
+        </div>
+
+        <button
+          className="task-modal-close"
+          onClick={() => setSelectedTask(null)}
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="task-modal-body">
+
+        <div className="task-detail-section">
+          <h3>Description</h3>
+
+          <p>
+            {selectedTask.description ||
+              "No description provided."}
+          </p>
+        </div>
+
+        <div className="task-detail-grid">
+
+          <div>
+            <span>Priority</span>
+
+            <strong>
+              {PRIORITY[selectedTask.priority] ||
+                selectedTask.priority}
+            </strong>
+          </div>
+
+          <div>
+            <span>Status</span>
+
+            <strong>
+              {STATUS[selectedTask.status] ||
+                selectedTask.status}
+            </strong>
+          </div>
+
+          <div>
+            <span>Assignee</span>
+
+            <strong>
+              {selectedTask.assigneeId
+                ? `User ${selectedTask.assigneeId}`
+                : "Unassigned"}
+            </strong>
+          </div>
+
+          <div>
+            <span>Sprint</span>
+
+            <strong>
+              {selectedTask.sprintId
+                ? `Sprint ${selectedTask.sprintId}`
+                : "No Sprint"}
+            </strong>
+          </div>
+
+        </div>
+
+        {selectedTask.acceptanceCriteria && (
+          <div className="task-detail-section">
+            <h3>Acceptance Criteria</h3>
+
+            <p>
+              {selectedTask.acceptanceCriteria}
+            </p>
+          </div>
+        )}
+        {/* Subtasks */}
+<div className="task-detail-section">
+  <h3>Subtasks</h3>
+
+  {loadingSubtasks ? (
+    <p>Loading subtasks...</p>
+  ) : taskSubtasks.length === 0 ? (
+    <p>No subtasks available.</p>
+  ) : (
+    <div className="subtask-list">
+      {taskSubtasks.map((subtask) => (
+  <button
+    type="button"
+    key={subtask.id}
+    className={`subtask-item ${
+      subtask.isCompleted ? "completed" : ""
+    }`}
+    onClick={() => handleSubtaskToggle(subtask)}
+  >
+    <span className="subtask-checkbox">
+      {subtask.isCompleted ? "✓" : ""}
+    </span>
+
+    <span className="subtask-title">
+      {subtask.title}
+    </span>
+  </button>
+))}
+    </div>
+  )}
+</div>
+{/* Comments */}
+<div className="task-detail-section comments-section">
+  <h3>Comments</h3>
+
+  {loadingComments ? (
+    <p>Loading comments...</p>
+  ) : taskComments.length === 0 ? (
+    <p>No comments yet.</p>
+  ) : (
+    <div className="comment-list">
+      {taskComments.map((comment) => (
+        <div
+          key={comment.id}
+          className="comment-item"
+        >
+          <div className="comment-header">
+            <strong>{comment.userName}</strong>
+
+            <span>
+              {new Date(
+                comment.createdAt
+              ).toLocaleString()}
+            </span>
+          </div>
+
+          <p>{comment.content}</p>
+        </div>
+      ))}
+    </div>
+  )}
+
+  <div className="comment-form">
+    <textarea
+      value={commentText}
+      onChange={(e) =>
+        setCommentText(e.target.value)
+      }
+      placeholder="Write a comment..."
+      rows={3}
+    />
+
+    <button
+      type="button"
+      className="comment-submit-button"
+      onClick={handleAddComment}
+      disabled={
+        addingComment || !commentText.trim()
+      }
+    >
+      {addingComment
+        ? "Adding..."
+        : "Add Comment"}
+    </button>
+  </div>
+</div>
+
+{/* Attachments */}
+<div className="task-detail-section attachments-section">
+  <h3>Attachments</h3>
+
+  {loadingAttachments ? (
+    <p>Loading attachments...</p>
+  ) : taskAttachments.length === 0 ? (
+    <p>No attachments yet.</p>
+  ) : (
+    <div className="attachment-list">
+      {taskAttachments.map((attachment) => (
+        <div
+          key={attachment.id}
+          className="attachment-item"
+        >
+          <div className="attachment-info">
+            <span className="attachment-icon">
+              📎
+            </span>
+
+            <div>
+              <strong>
+                {attachment.fileName ||
+                  attachment.name ||
+                  "Attachment"}
+              </strong>
+
+              {attachment.contentType && (
+                <small>
+                  {attachment.contentType}
+                </small>
+              )}
+            </div>
+          </div>
+
+          <div className="attachment-actions">
+            <button
+              type="button"
+              onClick={() =>
+                handleDownloadAttachment(
+                  attachment
+                )
+              }
+            >
+              Download
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleDeleteAttachment(
+                  attachment.id
+                )
+              }
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+
+  <div className="attachment-upload">
+    <input
+      id="task-attachment-input"
+      type="file"
+      onChange={(e) =>
+        setSelectedFile(
+          e.target.files?.[0] || null
+        )
+      }
+    />
+
+    <button
+      type="button"
+      onClick={handleUploadAttachment}
+      disabled={
+        uploadingAttachment ||
+        !selectedFile
+      }
+    >
+      {uploadingAttachment
+        ? "Uploading..."
+        : "Upload Attachment"}
+    </button>
+  </div>
+</div>
+
+        {selectedTask.dueDate && (
+          <div className="task-detail-section">
+            <h3>Due Date</h3>
+
+            <p>
+              {new Date(
+                selectedTask.dueDate
+              ).toLocaleString()}
+            </p>
+          </div>
+        )}
+
+      </div>
+
+      <div className="task-modal-footer">
+
+        <button
+          className="modal-close-button"
+          onClick={() => setSelectedTask(null)}
+        >
+          Close
+        </button>
+
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
